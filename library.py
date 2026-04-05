@@ -68,79 +68,177 @@ class Library:
     def get_all_media(self) -> List[Media]:
         return self._media
 
+    def search_media(self, query: str) -> List[Media]:
+        """
+        Ищет медиа по названию или автору (без учёта регистра)
+        """
+        query_lower = query.lower()
+        results = []
+
+        for media in self._media:
+            # Поиск по названию
+            if query_lower in media.title.lower():
+                results.append(media)
+                continue
+
+            # Поиск по автору (если у медиа есть атрибут author)
+            if hasattr(media, 'author') and query_lower in media.author.lower():
+                results.append(media)
+                continue
+
+        return results
+
+    def save_search_results(self, query: str, results: List[Media], filename: str = "search_results.txt") -> None:
+        """Сохраняет результаты поиска в текстовый файл"""
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(f"Результаты поиска по запросу: '{query}'\n")
+            f.write(f"Найдено: {len(results)}\n")
+            f.write("=" * 60 + "\n\n")
+
+            for i, media in enumerate(results, 1):
+                f.write(f"{i}. {media}\n")
+                # Добавляем дополнительную информацию
+                if hasattr(media, 'author'):
+                    f.write(f"   Автор: {media.author}\n")
+                if hasattr(media, 'year'):
+                    f.write(f"   Год: {media.year}\n")
+                if hasattr(media, 'is_loaned'):
+                    f.write(f"   Статус: {'Выдано' if media.is_loaned else 'Доступно'}\n")
+                f.write("\n")
+
+        print(f"Результаты сохранены в файл: {filename}")
+
+    def remove_media(self, title: str) -> bool:
+        """Удаляет медиа из библиотеки по названию"""
+        media = self.find_media_by_title(title)
+        if media and media in self._media:
+            # Проверяем, не выдано ли медиа
+            if media.is_loaned:
+                print(f"Нельзя удалить '{title}' — медиа выдано читателю")
+                return False
+            self._media.remove(media)
+            print(f"Удалено: {title}")
+            return True
+        else:
+            print(f"Медиа '{title}' не найдено")
+            return False
+
     def __str__(self) -> str:
         return f"Библиотека '{self._name}': {len(self._media)} объектов, {len(self._users)} читателей"
 
 
-# ----- Тестирование -----
+# ----- Интерактивное меню -----
 if __name__ == "__main__":
-    print("=" * 50)
-    print("ТЕСТИРОВАНИЕ БИБЛИОТЕКИ")
-    print("=" * 50)
-
+    # Создаём библиотеку и добавляем тестовые данные
     lib = Library("Центральная библиотека")
-    print(f"\nСоздана библиотека: {lib.name}")
 
-    print("\n--- Добавление медиа ---")
+    # Добавляем медиа
     book1 = Book("1984", "Джордж Оруэлл", "978-5-17-118119-8", 1949)
     book2 = Book("Мастер и Маргарита", "Михаил Булгаков", "978-5-17-118120-4", 1967)
-    ebook = DigitalBook("Python на практике", "Марк Лутц", "978-5-17-118121-1", 2020, 15)
+    book3 = Book("Преступление и наказание", "Фёдор Достоевский", "978-5-17-118122-8", 1866)
+    ebook = DigitalBook("Идеальный программист", "Роберт Мартин", "978-5-17-118124-2", 2011, 8)
+    dvd = DVD("Матрица", 1999, "Вачовски", 136)
     magazine = Magazine("National Geographic", 2023, 187, "NG Media")
     audiobook = AudioBook("Дюна", "Фрэнк Герберт", 2021, 480, "Иван Иванов")
-    dvd = DVD("Матрица", 1999, "Вачовски", 136)
 
-    lib.add_media(book1)
-    lib.add_media(book2)
-    lib.add_media(ebook)
-    lib.add_media(magazine)
-    lib.add_media(audiobook)
-    lib.add_media(dvd)
+    for media in [book1, book2, book3, ebook, dvd, magazine, audiobook]:
+        lib.add_media(media)
 
-    print("\n--- Добавление пользователей ---")
-    user1 = User("Анна", "U001")
-    user2 = PremiumUser("Иван", "U002", "gold")
-    lib.add_user(user1)
-    lib.add_user(user2)
+    # Добавляем тестового пользователя
+    user = User("Тестовый пользователь", "TEST001")
+    lib.add_user(user)
 
-    print(f"\n{lib}")
-    print(f"Всего медиа: {len(lib.get_all_media())}")
-    print(f"Доступно: {len(lib.get_available_media())}")
+    # Интерактивное меню
+    while True:
+        print("\n" + "=" * 50)
+        print("БИБЛИОТЕЧНАЯ СИСТЕМА")
+        print("=" * 50)
+        print("1. Показать все медиа")
+        print("2. Поиск по названию или автору")
+        print("3. Показать доступные медиа")
+        print("4. Выдать медиа пользователю")
+        print("5. Вернуть медиа")
+        print("6. Показать информацию о пользователе")
+        print("7. Сохранить результаты поиска в файл")
+        print("8. Удалить медиа из библиотеки")
+        print("9. Выйти")
 
-    print("\n--- Список всех медиа ---")
-    for media in lib.get_all_media():
-        print(f"  {media}")
+        choice = input("\nВыберите действие (1-9): ")
 
-    print("\n--- Сроки выдачи и штрафы ---")
-    for media in [book1, magazine, audiobook, dvd]:
-        print(f"  {media.title}: срок {media.get_loan_period_days()} дней, штраф {media.get_late_fee_per_day()} руб/день")
+        if choice == "1":
+            print("\n--- Все медиа ---")
+            for media in lib.get_all_media():
+                print(f"  {media}")
+            print(f"\nВсего: {len(lib.get_all_media())}")
 
-    print("\n--- Выдача медиа ---")
-    user1.loan_media(book1)
-    user1.loan_media(dvd)
-    user2.loan_media(ebook)
-    user2.loan_media(book2)
+        elif choice == "2":
+            query = input("\nВведите название или автора: ")
+            results = lib.search_media(query)
+            if results:
+                print(f"\n--- Найдено {len(results)} результатов ---")
+                for media in results:
+                    print(f"  {media}")
+            else:
+                print("\nНичего не найдено")
 
-    print(f"\nДоступно после выдач: {len(lib.get_available_media())}")
-    for media in lib.get_available_media():
-        print(f"  {media.title}")
+        elif choice == "3":
+            available = lib.get_available_media()
+            print(f"\n--- Доступно {len(available)} медиа ---")
+            for media in available:
+                print(f"  {media}")
 
-    popular = lib.get_most_popular_media()
-    if popular:
-        print(f"\nСамое популярное: {popular.title} (выдано {popular.loan_count} раз)")
+        elif choice == "4":
+            title = input("\nВведите название медиа для выдачи: ")
+            media = lib.find_media_by_title(title)
+            if not media:
+                print(f"Медиа '{title}' не найдено")
+            else:
+                if user.loan_media(media):
+                    print(f"'{title}' выдано пользователю {user.name}")
+                else:
+                    print(f"Не удалось выдать '{title}'")
 
-    print("\n--- Возврат ---")
-    user1.return_media(book1)
+        elif choice == "5":
+            title = input("\nВведите название медиа для возврата: ")
+            media = lib.find_media_by_title(title)
+            if not media:
+                print(f"Медиа '{title}' не найдено")
+            else:
+                if user.return_media(media):
+                    print(f"'{title}' возвращено")
+                else:
+                    print(f"Не удалось вернуть '{title}'")
 
-    print(f"\n{lib}")
-    print(f"Книги Анны: {[m.title for m in user1.loaned_media]}")
-    print(f"Книги Ивана: {[m.title for m in user2.loaned_media]}")
+        elif choice == "6":
+            print(f"\n{user}")
+            if user.loaned_media:
+                print("Медиа на руках:")
+                for media in user.loaned_media:
+                    print(f"  - {media.title}")
+            else:
+                print("На руках нет медиа")
 
-    print("\n--- Тест штрафа за просрочку ---")
-    loan_date = datetime.now() - timedelta(days=10)
-    return_date = datetime.now()
-    fine = lib.calculate_fine(dvd, loan_date, return_date)
-    print(f"DVD выдан на 3 дня, просрочка на 7 дней: штраф = {fine} руб")
+        elif choice == "7":
+            query = input("\nВведите поисковый запрос для сохранения: ")
+            results = lib.search_media(query)
+            if results:
+                filename = input("Имя файла для сохранения (по умолчанию search_results.txt): ")
+                if not filename:
+                    filename = "search_results.txt"
+                if not filename.endswith(".txt"):
+                    filename += ".txt"
+                lib.save_search_results(query, results, filename)
+            else:
+                print("Нет результатов для сохранения")
 
-    print("\n" + "=" * 50)
-    print("ТЕСТ ЗАВЕРШЁН")
-    print("=" * 50)
+        elif choice == "8":
+            print("\n--- Удаление медиа из библиотеки ---")
+            title = input("Введите название медиа для удаления: ")
+            lib.remove_media(title)
+
+        elif choice == "9":
+            print("\nДо свидания!")
+            break
+
+        else:
+            print("\nНеверный выбор, попробуйте снова")
